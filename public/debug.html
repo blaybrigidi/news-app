@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>News App API Debug</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #121212;
+      color: #e0e0e0;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1, h2 {
+      color: #90caf9;
+    }
+    button {
+      background: #1e88e5;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #1976d2;
+    }
+    pre {
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+    .error {
+      color: #f44336;
+    }
+    .success {
+      color: #4caf50;
+    }
+    .panel {
+      margin-bottom: 20px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 15px;
+    }
+  </style>
+</head>
+<body>
+  <h1>News App API Debug</h1>
+  
+  <div class="panel">
+    <h2>Server Health Check</h2>
+    <button id="healthCheck">Check Server Health</button>
+    <pre id="healthResult">Click button to check...</pre>
+  </div>
+
+  <div class="panel">
+    <h2>Server Configuration</h2>
+    <button id="debugCheck">Get Server Configuration</button>
+    <pre id="debugResult">Click button to check...</pre>
+  </div>
+
+  <div class="panel">
+    <h2>API Endpoint Tests</h2>
+    <div>
+      <button data-category="apple">Test Apple News API</button>
+      <button data-category="tesla">Test Tesla News API</button>
+      <button data-category="business">Test Business News API</button>
+      <button data-category="techcrunch">Test TechCrunch API</button>
+      <button data-category="wsj">Test WSJ API</button>
+    </div>
+    <h3>Response:</h3>
+    <pre id="apiResult">Select an API to test...</pre>
+  </div>
+
+  <script>
+    // Health check
+    document.getElementById('healthCheck').addEventListener('click', async () => {
+      const resultEl = document.getElementById('healthResult');
+      resultEl.textContent = 'Loading...';
+      try {
+        const response = await fetch('/api/health');
+        const data = await response.json();
+        resultEl.textContent = JSON.stringify(data, null, 2);
+        resultEl.classList.add('success');
+        resultEl.classList.remove('error');
+      } catch (error) {
+        resultEl.textContent = `Error: ${error.message}`;
+        resultEl.classList.add('error');
+        resultEl.classList.remove('success');
+      }
+    });
+
+    // Debug info
+    document.getElementById('debugCheck').addEventListener('click', async () => {
+      const resultEl = document.getElementById('debugResult');
+      resultEl.textContent = 'Loading...';
+      try {
+        const response = await fetch('/api/debug');
+        const data = await response.json();
+        resultEl.textContent = JSON.stringify(data, null, 2);
+        resultEl.classList.add('success');
+        resultEl.classList.remove('error');
+      } catch (error) {
+        resultEl.textContent = `Error: ${error.message}`;
+        resultEl.classList.add('error');
+        resultEl.classList.remove('success');
+      }
+    });
+
+    // API tests
+    document.querySelectorAll('button[data-category]').forEach(button => {
+      button.addEventListener('click', async () => {
+        const category = button.getAttribute('data-category');
+        const resultEl = document.getElementById('apiResult');
+        resultEl.textContent = `Loading ${category} news...`;
+        try {
+          const startTime = new Date();
+          const response = await fetch(`/api/news/${category}`);
+          const endTime = new Date();
+          const data = await response.json();
+          
+          let summary;
+          if (data.articles && Array.isArray(data.articles)) {
+            summary = {
+              status: data.status,
+              totalResults: data.totalResults,
+              articleCount: data.articles.length,
+              requestTime: `${endTime - startTime}ms`,
+              firstArticle: data.articles[0] ? {
+                title: data.articles[0].title,
+                source: data.articles[0].source?.name
+              } : null
+            };
+          } else {
+            summary = data;
+          }
+          
+          resultEl.textContent = JSON.stringify(summary, null, 2);
+          resultEl.classList.add('success');
+          resultEl.classList.remove('error');
+        } catch (error) {
+          resultEl.textContent = `Error: ${error.message}`;
+          resultEl.classList.add('error');
+          resultEl.classList.remove('success');
+        }
+      });
+    });
+  </script>
+</body>
+</html> 
