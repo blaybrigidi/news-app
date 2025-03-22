@@ -2,7 +2,7 @@ services:
   - type: web
     name: news-app
     env: node
-    buildCommand: npm install && node build.js
+    buildCommand: npm install && node build.cjs
     startCommand: npm start
     envVars:
       - key: NODE_ENV
