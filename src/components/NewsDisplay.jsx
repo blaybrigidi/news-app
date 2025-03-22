@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 const NewsDisplay = () => {
   const [newsData, setNewsData] = useState([]);
@@ -6,31 +7,47 @@ const NewsDisplay = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const itemsPerPage = 6;
 
-  const urls = [
-    { url: "https://newsapi.org/v2/everything?q=apple&from=2025-02-13&to=2025-02-13&sortBy=popularity&apiKey=50007d6b75d84100915829d1c35556e4", category: "Apple" },
-    { url: "https://newsapi.org/v2/everything?q=tesla&from=2025-01-14&sortBy=publishedAt&apiKey=50007d6b75d84100915829d1c35556e4", category: "Tesla" },
-    { url: "https://newsapi.org/v2/top-headlines?country=us&category=business&apiKey=50007d6b75d84100915829d1c35556e4", category: "Business" },
-    { url: "https://newsapi.org/v2/top-headlines?sources=techcrunch&apiKey=50007d6b75d84100915829d1c35556e4", category: "TechCrunch" },
-    { url: "https://newsapi.org/v2/everything?domains=wsj.com&apiKey=50007d6b75d84100915829d1c35556e4", category: "Wall Street Journal" }
+  const categories = [
+    { endpoint: 'apple', label: 'Apple' },
+    { endpoint: 'tesla', label: 'Tesla' },
+    { endpoint: 'business', label: 'Business' },
+    { endpoint: 'techcrunch', label: 'TechCrunch' },
+    { endpoint: 'wsj', label: 'Wall Street Journal' }
   ];
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         let allNews = [];
-        for (let item of urls) {
-          const response = await fetch(item.url);
-          const data = await response.json();
-          if (data.articles) {
-            allNews = [...allNews, ...data.articles.map(article => ({ ...article, category: item.category }))];
+        
+        for (let category of categories) {
+          try {
+            const response = await axios.get(`/api/news/${category.endpoint}`);
+            if (response.data && response.data.articles) {
+              // Add category to each article for filtering
+              const articlesWithCategory = response.data.articles.map(article => ({
+                ...article,
+                category: category.label
+              }));
+              allNews = [...allNews, ...articlesWithCategory];
+            }
+          } catch (categoryError) {
+            console.error(`Error fetching ${category.label} news:`, categoryError);
           }
         }
+        
         setNewsData(allNews);
         setFilteredNews(allNews);
+        setLoading(false);
       } catch (error) {
         console.error("Error fetching news:", error);
+        setError("Failed to load news. Please try again later.");
+        setLoading(false);
       }
     };
 
@@ -46,7 +63,7 @@ const NewsDisplay = () => {
 
     if (searchQuery) {
       filtered = filtered.filter(article =>
-        article.title.toLowerCase().includes(searchQuery.toLowerCase())
+        article.title?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -62,9 +79,13 @@ const NewsDisplay = () => {
   const NewsCard = ({ article }) => (
     <div className="bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
       <img 
-        src={article.urlToImage || '/api/placeholder/800/400'} 
+        src={article.urlToImage || 'https://via.placeholder.com/800x400'} 
         alt={article.title}
         className="h-48 w-full object-cover hover:opacity-80 transition-opacity duration-300"
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.src = 'https://via.placeholder.com/800x400?text=No+Image';
+        }}
       />
       <div className="p-6 space-y-4">
         <div className="space-y-2">
@@ -95,6 +116,22 @@ const NewsDisplay = () => {
     </div>
   );
 
+  if (loading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-900">
+        <div className="text-white text-xl">Loading news...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-900">
+        <div className="text-red-500 text-xl">{error}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gray-900 overflow-auto">
       <div className="w-full max-w-7xl p-8">
@@ -114,19 +151,23 @@ const NewsDisplay = () => {
             onChange={(e) => setSelectedCategory(e.target.value)}
           >
             <option value="All">All Categories</option>
-            <option value="Apple">Apple</option>
-            <option value="Tesla">Tesla</option>
-            <option value="Business">Business</option>
-            <option value="TechCrunch">TechCrunch</option>
-            <option value="Wall Street Journal">Wall Street Journal</option>
+            {categories.map(cat => (
+              <option key={cat.endpoint} value={cat.label}>{cat.label}</option>
+            ))}
           </select>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
-          {currentItems.map((article, index) => (
-            <NewsCard key={index} article={article} />
-          ))}
-        </div>
+        {currentItems.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+            {currentItems.map((article, index) => (
+              <NewsCard key={index} article={article} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center text-white text-xl py-12">
+            No news articles found. Try changing your search or category.
+          </div>
+        )}
 
         {totalPages > 1 && (
           <div className="flex justify-center gap-2">
