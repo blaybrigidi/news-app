@@ -4,59 +4,64 @@ import NewsCategory from './NewsCategory';
 
 function NewsApp() {
   const [categorizedData, setCategorizedData] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const urls = [
-  {
-    url: "https://newsapi.org/v2/everything?q=apple&from=2023-01-01&sortBy=popularity&apiKey=50007d6b75d84100915829d1c35556e4",
-    category: "Apple",
-  },
-  {
-    url: "https://newsapi.org/v2/everything?q=tesla&from=2023-01-01&sortBy=publishedAt&apiKey=50007d6b75d84100915829d1c35556e4",
-    category: "Tesla",
-  },
-  {
-    url: "https://newsapi.org/v2/top-headlines?country=us&category=business&apiKey=50007d6b75d84100915829d1c35556e4",
-    category: "Business",
-  },
-  {
-    url: "https://newsapi.org/v2/top-headlines?sources=techcrunch&apiKey=50007d6b75d84100915829d1c35556e4",
-    category: "TechCrunch",
-  },
-  {
-    url: "https://newsapi.org/v2/everything?domains=wsj.com&apiKey=50007d6b75d84100915829d1c35556e4",
-    category: "Wall Street Journal",
-  },
-];
-
+        const categories = [
+          { endpoint: 'apple', label: 'Apple' },
+          { endpoint: 'tesla', label: 'Tesla' },
+          { endpoint: 'business', label: 'Business' },
+          { endpoint: 'techcrunch', label: 'TechCrunch' },
+          { endpoint: 'wsj', label: 'Wall Street Journal' }
+        ];
 
         const categorized = {};
+        
+        // Determine the API base URL based on environment
+        const apiBaseUrl = import.meta.env.PROD 
+          ? '' // Empty means same domain in production
+          : 'http://localhost:3000'; // Use localhost in development
 
-        for (let i = 0; i < url.length; i++) {
-          const response = await axios.get(url[i].url, { timeout: 20000 });
-          const category = url[i].category;
-          categorized[category] = response.data.articles || [];
+        for (const category of categories) {
+          try {
+            const response = await axios.get(`${apiBaseUrl}/api/news/${category.endpoint}`, { 
+              timeout: 20000 
+            });
+            categorized[category.label] = response.data.articles || [];
+          } catch (categoryError) {
+            console.error(`Error fetching ${category.label} news:`, categoryError);
+            categorized[category.label] = [];
+          }
         }
 
         setCategorizedData(categorized);
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
+        setError('Failed to load news. Please try again later.');
+        setLoading(false);
       }
     }
 
     fetchData();
   }, []);
 
+  if (loading) return <div className="loading">Loading news...</div>;
+  if (error) return <div className="error">{error}</div>;
+
   return (
-    <div>
+    <div className="news-app">
       <h1>News App</h1>
-      <NewsCategory category="Apple News" articles={categorizedData['Apple News']} />
-      <NewsCategory category="Tesla News" articles={categorizedData['Tesla News']} />
-      <NewsCategory category="Business Headlines" articles={categorizedData['Business Headlines']} />
-      <NewsCategory category="TechCrunch Headlines" articles={categorizedData['TechCrunch Headlines']} />
-      <NewsCategory category="Wall Street Journal" articles={categorizedData['Wall Street Journal']} />
+      {Object.keys(categorizedData).map(category => (
+        <NewsCategory 
+          key={category}
+          category={category} 
+          articles={categorizedData[category]} 
+        />
+      ))}
     </div>
   );
 }
